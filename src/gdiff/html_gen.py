@@ -1,7 +1,8 @@
 """HTML generation for the diff viewer."""
 
 import html as _html
-from typing import List
+import difflib
+from typing import List, Tuple
 
 from gdiff import __version__, __author__
 from gdiff.parser import DiffRow, FileDiff
@@ -18,9 +19,11 @@ CSS = """\
     --add-bg: rgba(46,160,67,.15);
     --add-ln-bg: rgba(46,160,67,.30);
     --add-text: #3fb950;
+    --add-word-bg: rgba(46,160,67,.45);
     --del-bg: rgba(248,81,73,.15);
     --del-ln-bg: rgba(248,81,73,.30);
     --del-text: #f85149;
+    --del-word-bg: rgba(248,81,73,.45);
     --hunk-bg: rgba(56,139,253,.10);
     --hunk-text: #58a6ff;
     --ln-text: #484f58;
@@ -44,38 +47,40 @@ header h1{font-size:18px;font-weight:600}
 .stats{font-size:12px;color:var(--text-secondary);margin-left:auto}
 .stats .add-count{color:var(--add-text)}
 .stats .del-count{color:var(--del-text)}
-.file-section{margin:20px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.file-section{margin:20px;border:1px solid var(--border);border-radius:8px;
+              overflow:hidden}
 .file-header{background:var(--bg-secondary);padding:10px 16px;
              border-bottom:1px solid var(--border);display:flex;
              align-items:center;gap:12px}
 .file-path{font-family:var(--mono);font-size:13px;font-weight:600}
-.badge{font-size:10px;padding:1px 6px;border-radius:3px;font-weight:700;text-transform:uppercase}
+.badge{font-size:10px;padding:1px 6px;border-radius:3px;font-weight:700;
+       text-transform:uppercase}
 .badge.new{background:var(--add-bg);color:var(--add-text)}
 .badge.deleted{background:var(--del-bg);color:var(--del-text)}
-.table-wrap{overflow-x:auto}
-table.diff{width:100%;border-collapse:collapse;table-layout:fixed;
-           font-family:var(--mono);font-size:var(--fs);line-height:20px}
-col.ln-col{width:var(--ln-w)}
-col.code-col{width:calc(50% - var(--ln-w) - .5px)}
-col.div-col{width:1px}
-td{padding:0 8px;vertical-align:top;white-space:pre;overflow:hidden;text-overflow:ellipsis}
+.diff-container{display:flex;overflow:hidden}
+.diff-side{flex:1;min-width:0;overflow-x:auto}
+.diff-side table{width:100%;border-collapse:collapse;
+                 font-family:var(--mono);font-size:var(--fs);line-height:20px}
+.diff-divider{width:1px;min-width:1px;background:var(--border);flex-shrink:0}
+td{padding:0 8px;vertical-align:top;white-space:pre}
 td.ln{width:var(--ln-w);min-width:var(--ln-w);text-align:right;
       color:var(--ln-text);user-select:none;padding-right:10px;
-      border-right:1px solid var(--border)}
-td.divider{width:1px;padding:0;background:var(--border)}
-.ctx td.code{background:var(--bg-primary)}
-.del td.code.del-c{background:var(--del-bg)}
-.add td.code.add-c{background:var(--add-bg)}
-.del td.ln.del-ln{background:var(--del-ln-bg)}
-.add td.ln.add-ln{background:var(--add-ln-bg)}
-.changed td.code.del-c{background:var(--del-bg)}
-.changed td.code.add-c{background:var(--add-bg)}
-.changed td.ln.del-ln{background:var(--del-ln-bg)}
-.changed td.ln.add-ln{background:var(--add-ln-bg)}
-td.code.empty-c{background:var(--bg-tertiary)}
+      border-right:1px solid var(--border);position:sticky;left:0;z-index:1}
+td.code{tab-size:4;-moz-tab-size:4}
+tr.ctx td.code{background:var(--bg-primary)}
+tr.ctx td.ln{background:var(--bg-primary)}
+tr.del td.code{background:var(--del-bg)}
+tr.del td.ln{background:var(--del-ln-bg)}
+tr.add td.code{background:var(--add-bg)}
+tr.add td.ln{background:var(--add-ln-bg)}
+tr.empty td.code{background:var(--bg-tertiary)}
+tr.empty td.ln{background:var(--bg-tertiary)}
 tr.hunk td{background:var(--hunk-bg);color:var(--hunk-text);
            font-style:italic;padding:4px 16px;text-align:center}
-td.code{tab-size:4;-moz-tab-size:4}
+tr.hunk td.ln{background:var(--hunk-bg)}
+.wd{border-radius:3px;padding:1px 1px}
+.wd-del{background:var(--del-word-bg)}
+.wd-add{background:var(--add-word-bg)}
 footer{text-align:center;padding:16px;color:var(--text-secondary);
        font-size:11px;border-top:1px solid var(--border);margin-top:24px}
 footer a{color:var(--hunk-text);text-decoration:none}
@@ -83,6 +88,7 @@ footer a:hover{text-decoration:underline}
 """
 
 JS = """\
+// Keyboard navigation between files
 document.querySelectorAll('.file-nav a').forEach(a=>{
   a.addEventListener('click',e=>{
     e.preventDefault();
@@ -93,57 +99,128 @@ document.querySelectorAll('.file-nav a').forEach(a=>{
 let sections=document.querySelectorAll('.file-section');
 let cur=0;
 document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
   if(e.key==='j'){cur=Math.min(cur+1,sections.length-1);
     sections[cur].scrollIntoView({behavior:'smooth',block:'start'});}
   if(e.key==='k'){cur=Math.max(cur-1,0);
     sections[cur].scrollIntoView({behavior:'smooth',block:'start'});}
 });
+
+// Sync vertical scroll between left and right panels
+document.querySelectorAll('.diff-container').forEach(container=>{
+  const sides=container.querySelectorAll('.diff-side');
+  if(sides.length!==2)return;
+  let syncing=false;
+  sides.forEach((side,i)=>{
+    side.addEventListener('scroll',()=>{
+      if(syncing)return;
+      syncing=true;
+      const other=sides[1-i];
+      other.scrollTop=side.scrollTop;
+      syncing=false;
+    });
+  });
+});
 """
 
 
-def _row_html(row: DiffRow, filename: str) -> str:
-    if row.old.line_type == "hunk_header":
-        ctx = _html.escape(row.old.content)
-        return f'<tr class="hunk"><td colspan="5">{ctx}</td></tr>'
+def _word_diff(old_text: str, new_text: str) -> Tuple[str, str]:
+    """Compute word-level diff and return HTML with inline highlights.
 
-    old, new = row.old, row.new
+    Splits lines into character-level tokens and uses SequenceMatcher
+    to find exactly which segments changed.
+    """
+    sm = difflib.SequenceMatcher(None, old_text, new_text, autojunk=False)
+    old_parts: list = []
+    new_parts: list = []
 
-    if old.line_type == "del" and new.line_type == "add":
-        rc = "changed"
-    elif old.line_type == "del":
-        rc = "del"
-    elif new.line_type == "add":
-        rc = "add"
-    else:
-        rc = "ctx"
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        old_seg = _html.escape(old_text[i1:i2])
+        new_seg = _html.escape(new_text[j1:j2])
 
-    # old side
-    oln = str(old.line_num) if old.line_num is not None else ""
-    if old.line_type == "empty":
-        ocode, occ, olc = "", "empty-c", "ln"
-    else:
-        ocode = highlight_line(old.content, filename)
-        occ = f"{old.line_type}-c"
-        olc = f"{old.line_type}-ln" if old.line_type == "del" else "ln"
+        if tag == "equal":
+            old_parts.append(old_seg)
+            new_parts.append(new_seg)
+        elif tag == "delete":
+            old_parts.append(f'<span class="wd wd-del">{old_seg}</span>')
+        elif tag == "insert":
+            new_parts.append(f'<span class="wd wd-add">{new_seg}</span>')
+        elif tag == "replace":
+            old_parts.append(f'<span class="wd wd-del">{old_seg}</span>')
+            new_parts.append(f'<span class="wd wd-add">{new_seg}</span>')
 
-    # new side
-    nln = str(new.line_num) if new.line_num is not None else ""
-    if new.line_type == "empty":
-        ncode, ncc, nlc = "", "empty-c", "ln"
-    else:
-        ncode = highlight_line(new.content, filename)
-        ncc = f"{new.line_type}-c"
-        nlc = f"{new.line_type}-ln" if new.line_type == "add" else "ln"
+    return "".join(old_parts), "".join(new_parts)
 
+
+def _side_row(line_num: str, code_html: str, row_cls: str) -> str:
+    """Generate a single <tr> for one side of the diff."""
     return (
-        f'<tr class="{rc}">'
-        f'<td class="ln {olc}">{oln}</td>'
-        f'<td class="code {occ}">{ocode}</td>'
-        f'<td class="divider"></td>'
-        f'<td class="ln {nlc}">{nln}</td>'
-        f'<td class="code {ncc}">{ncode}</td>'
+        f'<tr class="{row_cls}">'
+        f'<td class="ln">{line_num}</td>'
+        f'<td class="code">{code_html}</td>'
         f"</tr>"
     )
+
+
+def _rows_html(
+    rows: List[DiffRow], filename: str
+) -> Tuple[str, str]:
+    """Generate left-side and right-side table rows for a file."""
+    left_rows: list = []
+    right_rows: list = []
+
+    for row in rows:
+        if row.old.line_type == "hunk_header":
+            ctx = _html.escape(row.old.content)
+            hunk = (
+                f'<tr class="hunk">'
+                f'<td class="ln"></td>'
+                f'<td class="code">{ctx}</td>'
+                f"</tr>"
+            )
+            left_rows.append(hunk)
+            right_rows.append(hunk)
+            continue
+
+        old, new = row.old, row.new
+        oln = str(old.line_num) if old.line_num is not None else ""
+        nln = str(new.line_num) if new.line_num is not None else ""
+
+        # Changed line pair: compute word-level diff
+        if old.line_type == "del" and new.line_type == "add":
+            old_html, new_html = _word_diff(old.content, new.content)
+            left_rows.append(_side_row(oln, old_html, "del"))
+            right_rows.append(_side_row(nln, new_html, "add"))
+        else:
+            # Old side
+            if old.line_type == "empty":
+                left_rows.append(_side_row("", "", "empty"))
+            elif old.line_type == "del":
+                left_rows.append(
+                    _side_row(oln, highlight_line(old.content, filename), "del")
+                )
+            else:
+                left_rows.append(
+                    _side_row(oln, highlight_line(old.content, filename), "ctx")
+                )
+
+            # New side
+            if new.line_type == "empty":
+                right_rows.append(_side_row("", "", "empty"))
+            elif new.line_type == "add":
+                right_rows.append(
+                    _side_row(
+                        nln, highlight_line(new.content, filename), "add"
+                    )
+                )
+            else:
+                right_rows.append(
+                    _side_row(
+                        nln, highlight_line(new.content, filename), "ctx"
+                    )
+                )
+
+    return "\n".join(left_rows), "\n".join(right_rows)
 
 
 def generate_html(files: List[FileDiff]) -> str:
@@ -172,28 +249,33 @@ def generate_html(files: List[FileDiff]) -> str:
             badge = '<span class="badge deleted">deleted</span>'
 
         if fd.is_binary:
-            body = (
-                '<tr><td colspan="5" style="padding:16px;text-align:center;'
-                'color:var(--text-secondary)">Binary file</td></tr>'
+            body_inner = (
+                '<div class="diff-container">'
+                '<div style="padding:16px;text-align:center;width:100%;'
+                'color:var(--text-secondary)">Binary file</div></div>'
             )
         else:
-            body = "\n".join(_row_html(r, fd.new_path) for r in fd.rows)
+            left_html, right_html = _rows_html(fd.rows, fd.new_path)
+            body_inner = (
+                f'<div class="diff-container">\n'
+                f'  <div class="diff-side">\n'
+                f"    <table><tbody>\n{left_html}\n    </tbody></table>\n"
+                f"  </div>\n"
+                f'  <div class="diff-divider"></div>\n'
+                f'  <div class="diff-side">\n'
+                f"    <table><tbody>\n{right_html}\n    </tbody></table>\n"
+                f"  </div>\n"
+                f"</div>"
+            )
 
         file_sections.append(
             f'<section id="file-{idx}" class="file-section">\n'
             f'  <div class="file-header">\n'
             f'    <span class="file-path">'
-            f'{_html.escape(fd.display_path)}</span>\n'
+            f"{_html.escape(fd.display_path)}</span>\n"
             f"    {badge}\n"
             f"  </div>\n"
-            f'  <div class="table-wrap">\n'
-            f'  <table class="diff">\n'
-            f'    <colgroup><col class="ln-col"><col class="code-col">'
-            f'<col class="div-col"><col class="ln-col">'
-            f'<col class="code-col"></colgroup>\n'
-            f"    <tbody>\n{body}\n    </tbody>\n"
-            f"  </table>\n"
-            f"  </div>\n"
+            f"  {body_inner}\n"
             f"</section>"
         )
 
