@@ -10,85 +10,102 @@ from gdiff.highlight import highlight_line
 
 CSS = """\
 :root {
-    --bg-primary: #0d1117;
-    --bg-secondary: #161b22;
-    --bg-tertiary: #21262d;
-    --text-primary: #e6edf3;
-    --text-secondary: #8b949e;
-    --border: #30363d;
-    --add-bg: rgba(46,160,67,.15);
-    --add-ln-bg: rgba(46,160,67,.30);
-    --add-text: #3fb950;
-    --add-word-bg: rgba(46,160,67,.45);
-    --del-bg: rgba(248,81,73,.15);
-    --del-ln-bg: rgba(248,81,73,.30);
-    --del-text: #f85149;
-    --del-word-bg: rgba(248,81,73,.45);
-    --hunk-bg: rgba(56,139,253,.10);
-    --hunk-text: #58a6ff;
-    --ln-text: #484f58;
-    --ln-w: 52px;
-    --mono: 'SF Mono','Monaco','Inconsolata','Fira Code','Droid Sans Mono',
-            'Source Code Pro', monospace;
+    --bg: #1e1e1e;
+    --bg-secondary: #252526;
+    --bg-tertiary: #2d2d2d;
+    --text: #d4d4d4;
+    --text-muted: #858585;
+    --border: #3e3e3e;
+    --del-bg: rgba(255,0,0,.18);
+    --del-ln-bg: rgba(255,0,0,.25);
+    --del-gutter: #6e3030;
+    --del-word: rgba(255,0,0,.40);
+    --add-bg: rgba(0,180,0,.15);
+    --add-ln-bg: rgba(0,180,0,.22);
+    --add-gutter: #2e5d30;
+    --add-word: rgba(0,180,0,.38);
+    --hunk-bg: rgba(86,156,214,.08);
+    --hunk-text: #569cd6;
+    --ln-text: #858585;
+    --mono: Consolas,'Courier New','SF Mono','Monaco',monospace;
     --fs: 13px;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg-primary);color:var(--text-primary);
-     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.5}
+body{background:var(--bg);color:var(--text);
+     font-family:'Segoe UI',-apple-system,sans-serif;line-height:1.5}
+
+/* Header */
 header{position:sticky;top:0;z-index:100;background:var(--bg-secondary);
-       border-bottom:1px solid var(--border);padding:12px 24px;
-       display:flex;align-items:center;gap:20px;flex-wrap:wrap}
-header h1{font-size:18px;font-weight:600}
-.file-nav{display:flex;gap:6px;flex-wrap:wrap}
+       border-bottom:1px solid var(--border);padding:10px 20px;
+       display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header h1{font-size:14px;font-weight:600;color:var(--text-muted)}
+.file-nav{display:flex;gap:4px;flex-wrap:wrap}
 .file-nav a{color:var(--hunk-text);text-decoration:none;font-size:12px;
-            padding:2px 8px;border-radius:4px;background:var(--bg-tertiary);
+            padding:2px 8px;border-radius:3px;background:var(--bg-tertiary);
             font-family:var(--mono)}
 .file-nav a:hover{background:var(--border)}
-.stats{font-size:12px;color:var(--text-secondary);margin-left:auto}
-.stats .add-count{color:var(--add-text)}
-.stats .del-count{color:var(--del-text)}
-.file-section{margin:20px;border:1px solid var(--border);border-radius:8px;
-              overflow:hidden}
-.file-header{background:var(--bg-secondary);padding:10px 16px;
+.stats{font-size:12px;color:var(--text-muted);margin-left:auto}
+.stats .s-add{color:#4ec94e}
+.stats .s-del{color:#f14c4c}
+
+/* File sections */
+.file-section{margin:16px 20px;border:1px solid var(--border);
+              border-radius:4px;overflow:hidden}
+.file-header{background:var(--bg-secondary);padding:8px 14px;
              border-bottom:1px solid var(--border);display:flex;
-             align-items:center;gap:12px}
-.file-path{font-family:var(--mono);font-size:13px;font-weight:600}
+             align-items:center;gap:10px}
+.file-path{font-family:var(--mono);font-size:12px;font-weight:600}
 .badge{font-size:10px;padding:1px 6px;border-radius:3px;font-weight:700;
-       text-transform:uppercase}
-.badge.new{background:var(--add-bg);color:var(--add-text)}
-.badge.deleted{background:var(--del-bg);color:var(--del-text)}
-.diff-container{display:flex}
-.diff-side{flex:1;min-width:0;overflow-x:auto}
-.diff-side table{min-width:100%;width:max-content;border-collapse:collapse;
-                 font-family:var(--mono);font-size:var(--fs);line-height:20px}
-.diff-divider{width:1px;min-width:1px;background:var(--border);flex-shrink:0}
-td{padding:0 8px;vertical-align:top;white-space:pre}
-td.ln{width:var(--ln-w);min-width:var(--ln-w);text-align:right;
-      color:var(--ln-text);user-select:none;padding-right:10px;
-      border-right:1px solid var(--border);position:sticky;left:0;z-index:1}
-td.code{tab-size:4;-moz-tab-size:4}
-tr.ctx td.code{background:var(--bg-primary)}
-tr.ctx td.ln{background:var(--bg-primary)}
+       text-transform:uppercase;letter-spacing:.3px}
+.badge.new{background:var(--add-bg);color:#4ec94e}
+.badge.deleted{background:var(--del-bg);color:#f14c4c}
+
+/* Diff table */
+.diff-wrap{overflow-x:auto}
+table.diff{min-width:100%;width:max-content;border-collapse:collapse;
+           font-family:var(--mono);font-size:var(--fs);line-height:20px}
+td{padding:0;vertical-align:top;white-space:pre}
+td.ln{width:50px;min-width:50px;text-align:right;color:var(--ln-text);
+      user-select:none;padding-right:8px;font-size:12px}
+td.ln-old{border-right:1px solid var(--border)}
+td.gutter{width:16px;min-width:16px;text-align:center;font-size:11px;
+          user-select:none}
+td.code{padding:0 12px}
+
+/* Row types */
+tr.ctx td.code{background:var(--bg)}
+tr.ctx td.ln{background:var(--bg)}
+tr.ctx td.gutter{background:var(--bg)}
+
 tr.del td.code{background:var(--del-bg)}
 tr.del td.ln{background:var(--del-ln-bg)}
+tr.del td.gutter{background:var(--del-gutter);color:#f14c4c}
+
 tr.add td.code{background:var(--add-bg)}
 tr.add td.ln{background:var(--add-ln-bg)}
-tr.empty td.code{background:var(--bg-tertiary)}
-tr.empty td.ln{background:var(--bg-tertiary)}
+tr.add td.gutter{background:var(--add-gutter);color:#4ec94e}
+
 tr.hunk td{background:var(--hunk-bg);color:var(--hunk-text);
-           font-style:italic;padding:4px 16px;text-align:center}
-tr.hunk td.ln{background:var(--hunk-bg)}
-.wd{border-radius:3px;padding:1px 1px}
-.wd-del{background:var(--del-word-bg)}
-.wd-add{background:var(--add-word-bg)}
-footer{text-align:center;padding:16px;color:var(--text-secondary);
-       font-size:11px;border-top:1px solid var(--border);margin-top:24px}
-footer a{color:var(--hunk-text);text-decoration:none}
-footer a:hover{text-decoration:underline}
+           font-style:italic;font-size:12px}
+tr.hunk td.code{padding:4px 12px}
+
+/* Word-level highlights */
+.wd{border-radius:2px;padding:0 1px}
+.wd-del{background:var(--del-word)}
+.wd-add{background:var(--add-word)}
+
+/* Collapsed context */
+tr.fold td{background:var(--bg-secondary);text-align:center;
+           color:var(--text-muted);font-size:11px;cursor:pointer;
+           padding:2px 12px;border-top:1px solid var(--border);
+           border-bottom:1px solid var(--border)}
+tr.fold:hover td{background:var(--bg-tertiary)}
+
+footer{text-align:center;padding:12px;color:var(--text-muted);
+       font-size:11px;border-top:1px solid var(--border);margin-top:20px}
 """
 
 JS = """\
-// Keyboard navigation between files
 document.querySelectorAll('.file-nav a').forEach(a=>{
   a.addEventListener('click',e=>{
     e.preventDefault();
@@ -105,31 +122,11 @@ document.addEventListener('keydown',e=>{
   if(e.key==='k'){cur=Math.max(cur-1,0);
     sections[cur].scrollIntoView({behavior:'smooth',block:'start'});}
 });
-
-// Sync vertical scroll between left and right panels
-document.querySelectorAll('.diff-container').forEach(container=>{
-  const sides=container.querySelectorAll('.diff-side');
-  if(sides.length!==2)return;
-  let syncing=false;
-  sides.forEach((side,i)=>{
-    side.addEventListener('scroll',()=>{
-      if(syncing)return;
-      syncing=true;
-      const other=sides[1-i];
-      other.scrollTop=side.scrollTop;
-      syncing=false;
-    });
-  });
-});
 """
 
 
 def _word_diff(old_text: str, new_text: str) -> Tuple[str, str]:
-    """Compute word-level diff and return HTML with inline highlights.
-
-    Splits lines into character-level tokens and uses SequenceMatcher
-    to find exactly which segments changed.
-    """
+    """Compute character-level diff, return HTML with inline highlights."""
     sm = difflib.SequenceMatcher(None, old_text, new_text, autojunk=False)
     old_parts: list = []
     new_parts: list = []
@@ -152,79 +149,76 @@ def _word_diff(old_text: str, new_text: str) -> Tuple[str, str]:
     return "".join(old_parts), "".join(new_parts)
 
 
-def _side_row(line_num: str, code_html: str, row_cls: str) -> str:
-    """Generate a single <tr> for one side of the diff."""
+def _inline_row(
+    old_ln: str, new_ln: str, gutter: str, code_html: str, cls: str
+) -> str:
+    """Single table row: old_line# | new_line# | +/- gutter | code."""
     return (
-        f'<tr class="{row_cls}">'
-        f'<td class="ln">{line_num}</td>'
+        f'<tr class="{cls}">'
+        f'<td class="ln ln-old">{old_ln}</td>'
+        f'<td class="ln">{new_ln}</td>'
+        f'<td class="gutter">{gutter}</td>'
         f'<td class="code">{code_html}</td>'
         f"</tr>"
     )
 
 
-def _rows_html(
-    rows: List[DiffRow], filename: str
-) -> Tuple[str, str]:
-    """Generate left-side and right-side table rows for a file."""
-    left_rows: list = []
-    right_rows: list = []
+def _file_rows(rows: List[DiffRow], filename: str) -> str:
+    """Generate inline diff rows for a single file (VS Code style)."""
+    html_rows: list = []
 
     for row in rows:
         if row.old.line_type == "hunk_header":
             ctx = _html.escape(row.old.content)
-            hunk = (
+            html_rows.append(
                 f'<tr class="hunk">'
-                f'<td class="ln"></td>'
-                f'<td class="code">{ctx}</td>'
-                f"</tr>"
+                f'<td class="ln ln-old"></td><td class="ln"></td>'
+                f'<td class="gutter"></td>'
+                f'<td class="code">{ctx}</td></tr>'
             )
-            left_rows.append(hunk)
-            right_rows.append(hunk)
             continue
 
         old, new = row.old, row.new
         oln = str(old.line_num) if old.line_num is not None else ""
         nln = str(new.line_num) if new.line_num is not None else ""
 
-        # Changed line pair: compute word-level diff
+        # Changed pair: show deleted line then added line with word diff
         if old.line_type == "del" and new.line_type == "add":
             old_html, new_html = _word_diff(old.content, new.content)
-            left_rows.append(_side_row(oln, old_html, "del"))
-            right_rows.append(_side_row(nln, new_html, "add"))
-        else:
-            # Old side
-            if old.line_type == "empty":
-                left_rows.append(_side_row("", "", "empty"))
-            elif old.line_type == "del":
-                left_rows.append(
-                    _side_row(oln, highlight_line(old.content, filename), "del")
+            html_rows.append(
+                _inline_row(oln, "", "\u2212", old_html, "del")
+            )
+            html_rows.append(
+                _inline_row("", nln, "+", new_html, "add")
+            )
+        elif old.line_type == "del":
+            html_rows.append(
+                _inline_row(
+                    oln, "", "\u2212",
+                    highlight_line(old.content, filename), "del",
                 )
-            else:
-                left_rows.append(
-                    _side_row(oln, highlight_line(old.content, filename), "ctx")
+            )
+        elif new.line_type == "add":
+            html_rows.append(
+                _inline_row(
+                    "", nln, "+",
+                    highlight_line(new.content, filename), "add",
                 )
+            )
+        elif old.line_type == "ctx":
+            html_rows.append(
+                _inline_row(
+                    oln, nln, "",
+                    highlight_line(old.content, filename), "ctx",
+                )
+            )
+        # skip empty rows (padding from side-by-side) - not needed inline
 
-            # New side
-            if new.line_type == "empty":
-                right_rows.append(_side_row("", "", "empty"))
-            elif new.line_type == "add":
-                right_rows.append(
-                    _side_row(
-                        nln, highlight_line(new.content, filename), "add"
-                    )
-                )
-            else:
-                right_rows.append(
-                    _side_row(
-                        nln, highlight_line(new.content, filename), "ctx"
-                    )
-                )
-
-    return "\n".join(left_rows), "\n".join(right_rows)
+    return "\n".join(html_rows)
 
 
 def generate_html(files: List[FileDiff]) -> str:
-    """Generate a self-contained HTML page for the given file diffs."""
+    """Generate a self-contained HTML page (VS Code inline diff style)."""
     total_add = 0
     total_del = 0
     for f in files:
@@ -249,22 +243,17 @@ def generate_html(files: List[FileDiff]) -> str:
             badge = '<span class="badge deleted">deleted</span>'
 
         if fd.is_binary:
-            body_inner = (
-                '<div class="diff-container">'
-                '<div style="padding:16px;text-align:center;width:100%;'
-                'color:var(--text-secondary)">Binary file</div></div>'
+            table_html = (
+                '<div style="padding:16px;text-align:center;'
+                'color:var(--text-muted)">Binary file</div>'
             )
         else:
-            left_html, right_html = _rows_html(fd.rows, fd.new_path)
-            body_inner = (
-                f'<div class="diff-container">\n'
-                f'  <div class="diff-side">\n'
-                f"    <table><tbody>\n{left_html}\n    </tbody></table>\n"
-                f"  </div>\n"
-                f'  <div class="diff-divider"></div>\n'
-                f'  <div class="diff-side">\n'
-                f"    <table><tbody>\n{right_html}\n    </tbody></table>\n"
-                f"  </div>\n"
+            rows_html = _file_rows(fd.rows, fd.new_path)
+            table_html = (
+                f'<div class="diff-wrap">\n'
+                f'<table class="diff"><tbody>\n'
+                f"{rows_html}\n"
+                f"</tbody></table>\n"
                 f"</div>"
             )
 
@@ -275,7 +264,7 @@ def generate_html(files: List[FileDiff]) -> str:
             f"{_html.escape(fd.display_path)}</span>\n"
             f"    {badge}\n"
             f"  </div>\n"
-            f"  {body_inner}\n"
+            f"  {table_html}\n"
             f"</section>"
         )
 
@@ -300,8 +289,8 @@ def generate_html(files: List[FileDiff]) -> str:
     {nav}
   </div>
   <div class="stats">
-    <span class="add-count">+{total_add}</span>&nbsp;
-    <span class="del-count">-{total_del}</span>
+    <span class="s-add">+{total_add}</span>&nbsp;
+    <span class="s-del">&minus;{total_del}</span>
   </div>
 </header>
 
