@@ -103,6 +103,12 @@ tr.fold:hover td{background:var(--bg-tertiary)}
 
 footer{text-align:center;padding:12px;color:var(--text-muted);
        font-size:11px;border-top:1px solid var(--border);margin-top:20px}
+.banner{display:flex;align-items:center;gap:12px;padding:8px 20px;
+        background:#1a2a1a;border-bottom:1px solid #2a4a2a;
+        font-size:12px;color:#4ec94e}
+.banner .hint{margin-left:auto;color:var(--text-muted)}
+.banner code{background:var(--bg-tertiary);padding:1px 6px;
+             border-radius:3px;font-family:var(--mono)}
 """
 
 JS = """\
@@ -217,7 +223,7 @@ def _file_rows(rows: List[DiffRow], filename: str) -> str:
     return "\n".join(html_rows)
 
 
-def generate_html(files: List[FileDiff]) -> str:
+def generate_html(files: List[FileDiff], incremental: bool = False) -> str:
     """Generate a self-contained HTML page (VS Code inline diff style)."""
     total_add = 0
     total_del = 0
@@ -272,6 +278,17 @@ def generate_html(files: List[FileDiff]) -> str:
     nav = "\n    ".join(nav_links)
     sections = "\n\n".join(file_sections)
 
+    banner = ""
+    if incremental:
+        banner = (
+            '<div class="banner">'
+            '&#9679; Showing new changes since last review'
+            '<span class="hint">'
+            '<code>gdiff --full</code> to see all &nbsp;|&nbsp;'
+            '<code>gdiff --reset</code> to clear checkpoint'
+            '</span></div>'
+        )
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -294,6 +311,7 @@ def generate_html(files: List[FileDiff]) -> str:
   </div>
 </header>
 
+{banner}
 {sections}
 
 <footer>

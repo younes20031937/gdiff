@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gdiff"
-version = "0.3.0"
+version = "0.4.0"
 description = "Web-based inline git diff viewer"
 readme = "README.md"
 license = "MIT"
