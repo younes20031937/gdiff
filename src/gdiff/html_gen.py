@@ -57,9 +57,9 @@ header h1{font-size:18px;font-weight:600}
        text-transform:uppercase}
 .badge.new{background:var(--add-bg);color:var(--add-text)}
 .badge.deleted{background:var(--del-bg);color:var(--del-text)}
-.diff-container{display:flex;overflow:hidden}
+.diff-container{display:flex}
 .diff-side{flex:1;min-width:0;overflow-x:auto}
-.diff-side table{width:100%;border-collapse:collapse;
+.diff-side table{min-width:100%;width:max-content;border-collapse:collapse;
                  font-family:var(--mono);font-size:var(--fs);line-height:20px}
 .diff-divider{width:1px;min-width:1px;background:var(--border);flex-shrink:0}
 td{padding:0 8px;vertical-align:top;white-space:pre}
